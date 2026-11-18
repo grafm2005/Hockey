@@ -1141,6 +1141,103 @@ drawScene=function(s,time,local){
 };
 
 
+
+// HOCKEY ASSET PACK 1.0 — локальные процедурные модели для хоккейных сцен.
+// Все элементы рисуются на Canvas: внешние изображения и сетевые запросы не нужны.
+LOC.hockey_rink='Хоккейная арена';
+const __hockeyWords=/хокке|шайб|клюшк|коньк|вратар|буллит|гол(?:[!.?\s]|$)|период|бросок|пас(?:[!.?\s]|$)|силов|смена игроков|ледов(?:ая|ом|ую) площадк/i;
+const __hockeyPlayerWords=/хоккеист|игрок|нападающ|защитник|капитан команды/i;
+const __hockeyGoalieWords=/вратар|голкипер/i;
+const __hockeyBaseGuessLocation=guessLocation;
+guessLocation=function(text){const q=String(text||'');return __hockeyWords.test(q)?'hockey_rink':__hockeyBaseGuessLocation(text)};
+const __hockeyBaseAnalyze=__aiAnalyzeScene;
+__aiAnalyzeScene=function(text,index=0){
+ const a=__hockeyBaseAnalyze(text,index),q=String(text||'').toLowerCase();
+ a.hockey=__hockeyWords.test(q);
+ if(a.hockey){
+  a.loc='hockey_rink';
+  a.hockeyRole=__hockeyGoalieWords.test(q)?'goalie':'skater';
+  a.hockeyAction=/брос|кида|ударил по шайб|щелч|выстрел/.test(q)?'shot':/пас|переда[её]т шайб/.test(q)?'pass':/защит|блокир|перекрывает/.test(q)?'defend':/вратар|голкипер/.test(q)?'save':/забива|гол\b/.test(q)?'goal':'skate';
+  a.objects=[...new Set([...(a.objects||[]),'hockey_stick','puck'])];
+  if(!a.characters.length)a.characters=['human'];
+ }
+ return a;
+};
+const __hockeyBaseMakeScenes=makeOfflineScenes;
+makeOfflineScenes=function(storyText){
+ const result=__hockeyBaseMakeScenes(storyText);
+ result.forEach(s=>{if(s.analysis?.hockey){s.hockey=true;s.loc='hockey_rink';s.hockeyRole=s.analysis.hockeyRole;s.hockeyAction=s.analysis.hockeyAction;
+  const role=s.hockeyRole==='goalie'?'вратарь в полной защитной экипировке':'хоккеист в шлеме, свитере, перчатках и коньках';
+  s.visualPrompt+=` ХОККЕЙ: ${role}; на льду шайба и клюшка, хоккейная площадка с разметкой и воротами.`;
+  s.propsVisible=[...(s.propsVisible||[]),'хоккейная клюшка','шайба'];
+  s.props=[...new Set([s.props||'', 'хоккейная клюшка','шайба'].filter(Boolean))].join(', ');
+ }});
+ return result;
+};
+function __hockeyRink(time=0){
+ ctx.save();
+ const ice=ctx.createLinearGradient(0,80,0,960);ice.addColorStop(0,'#dff5fb');ice.addColorStop(.55,'#b9e3f0');ice.addColorStop(1,'#8ec4d8');ctx.fillStyle=ice;ctx.fillRect(0,0,540,960);
+ // Arena glass, stands and boards.
+ ctx.fillStyle='#263c55';ctx.fillRect(0,0,540,155);
+ for(let row=0;row<3;row++)for(let i=0;i<22;i++){ctx.fillStyle=['#e75d5d','#f1c66d','#5b9fc1','#e9edf0'][(i+row*3)%4];ctx.beginPath();ctx.arc(12+i*25,48+row*28,5,0,Math.PI*2);ctx.fill()}
+ ctx.fillStyle='#f5fbfc';ctx.fillRect(0,145,540,45);ctx.fillStyle='#d94a4a';ctx.fillRect(0,184,540,8);ctx.fillStyle='#f7fbfc';ctx.fillRect(0,192,540,22);
+ // Rounded rink outline and markings.
+ ctx.strokeStyle='#fff';ctx.lineWidth=15;ctx.beginPath();ctx.roundRect(18,205,504,720,68);ctx.stroke();
+ ctx.strokeStyle='#d94b54';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(25,365);ctx.lineTo(515,365);ctx.moveTo(25,765);ctx.lineTo(515,765);ctx.stroke();
+ ctx.strokeStyle='#3c82bd';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(25,450);ctx.lineTo(515,450);ctx.moveTo(25,680);ctx.lineTo(515,680);ctx.stroke();
+ ctx.strokeStyle='#d84b58';ctx.lineWidth=4;ctx.beginPath();ctx.arc(270,565,82,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#d84b58';ctx.beginPath();ctx.arc(270,565,5,0,Math.PI*2);ctx.fill();
+ for(const y of [310,820])for(const x of [110,430]){ctx.strokeStyle='#d84b58';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,42,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#d84b58';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill()}
+ // Goal frame at the far end.
+ ctx.save();ctx.translate(270,252);ctx.fillStyle='#d94d56';ctx.fillRect(-63,-5,126,12);ctx.fillRect(-63,-5,8,55);ctx.fillRect(55,-5,8,55);ctx.strokeStyle='#fff';ctx.lineWidth=2;for(let x=-52;x<=52;x+=13){ctx.beginPath();ctx.moveTo(x,7);ctx.lineTo(x,48);ctx.stroke()}for(let y=15;y<50;y+=12){ctx.beginPath();ctx.moveTo(-55,y);ctx.lineTo(55,y);ctx.stroke()}ctx.restore();
+ // Reflections and skate scratches.
+ ctx.globalAlpha=.18;ctx.strokeStyle='#fff';ctx.lineWidth=2;for(let i=0;i<15;i++){let x=(i*73+time*.018)%540,y=390+(i*47)%470;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+35,y-5);ctx.stroke()}ctx.globalAlpha=1;
+ ctx.restore();
+}
+function __hockeyStick(x,y,scale=1,angle=-.35){ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.scale(scale,scale);ctx.strokeStyle='#8c542f';ctx.lineWidth=8;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,-5);ctx.lineTo(0,115);ctx.stroke();ctx.strokeStyle='#d7e1e5';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-2,4);ctx.lineTo(-2,108);ctx.stroke();ctx.fillStyle='#332b2b';ctx.beginPath();ctx.moveTo(-4,108);ctx.lineTo(1,120);ctx.lineTo(42,120);ctx.quadraticCurveTo(49,119,45,111);ctx.lineTo(4,111);ctx.closePath();ctx.fill();ctx.restore()}
+function __hockeySkater(x,y,scale=1,time=0,role='skater',action='skate'){
+ ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+ const lean=action==='shot'?.24:action==='defend'?-.12:Math.sin(time*.004)*.035;ctx.rotate(lean);
+ ctx.fillStyle='#29465b33';ctx.beginPath();ctx.ellipse(0,5,67,15,0,0,Math.PI*2);ctx.fill();
+ if(role==='goalie'){
+  // Goalie pads, blocker, catching glove and chest protector.
+  ctx.fillStyle='#f3f5f5';ctx.beginPath();ctx.roundRect(-47,-62,34,83,13);ctx.roundRect(13,-62,34,83,13);ctx.fill();ctx.strokeStyle='#c64e58';ctx.lineWidth=5;for(let yy=-48;yy<12;yy+=19){ctx.beginPath();ctx.moveTo(-45,yy);ctx.lineTo(-15,yy);ctx.moveTo(15,yy);ctx.lineTo(45,yy);ctx.stroke()}
+  ctx.fillStyle='#dce8ed';ctx.beginPath();ctx.roundRect(-34,-143,68,92,19);ctx.fill();ctx.fillStyle='#c84e59';ctx.fillRect(-31,-128,62,9);
+  ctx.fillStyle='#f3f5f5';ctx.beginPath();ctx.arc(-48,-105,19,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.roundRect(31,-119,28,42,8);ctx.fill();
+  ctx.fillStyle='#25384a';ctx.beginPath();ctx.arc(0,-164,29,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d6e3e9';ctx.fillRect(-22,-166,44,5);ctx.strokeStyle='#d6e3e9';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,-160,25,Math.PI,Math.PI*2);ctx.stroke();
+ }else{
+  // Skates and articulated legs.
+  ctx.strokeStyle='#202f42';ctx.lineWidth=15;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-12,-42);ctx.lineTo(-29,-5);ctx.moveTo(12,-42);ctx.lineTo(29,-5);ctx.stroke();
+  ctx.fillStyle='#e8f1f5';ctx.beginPath();ctx.roundRect(-46,-9,34,12,5);ctx.roundRect(12,-9,34,12,5);ctx.fill();ctx.fillStyle='#536779';ctx.fillRect(-44,2,32,3);ctx.fillRect(14,2,32,3);
+  // Team jersey, shoulder panels and number.
+  ctx.fillStyle='#234f7a';ctx.beginPath();ctx.moveTo(-34,-137);ctx.lineTo(34,-137);ctx.lineTo(43,-55);ctx.quadraticCurveTo(0,-35,-43,-55);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#f2f4f3';ctx.fillRect(-34,-112,68,9);ctx.fillStyle='#d84c56';ctx.fillRect(-38,-79,76,8);
+  ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText('17',0,-72);
+  ctx.strokeStyle='#202f42';ctx.lineWidth=12;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-28,-124);ctx.lineTo(-55,-83);ctx.moveTo(28,-124);ctx.lineTo(53,-89);ctx.stroke();
+  ctx.fillStyle='#e8edf0';ctx.beginPath();ctx.arc(-56,-81,10,0,Math.PI*2);ctx.arc(54,-87,10,0,Math.PI*2);ctx.fill();
+  // Helmet and cage.
+  ctx.fillStyle='#1d3046';ctx.beginPath();ctx.arc(0,-158,29,Math.PI,Math.PI*2);ctx.lineTo(29,-153);ctx.quadraticCurveTo(0,-126,-29,-153);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#dce5e8';ctx.lineWidth=2;for(let xx=-15;xx<=15;xx+=10){ctx.beginPath();ctx.moveTo(xx,-151);ctx.lineTo(xx,-132);ctx.stroke()}ctx.beginPath();ctx.moveTo(-22,-144);ctx.lineTo(22,-144);ctx.stroke();
+ }
+ __hockeyStick(role==='goalie'?58:44,role==='goalie'?-82:-91,role==='goalie'?.8:.95,role==='goalie'?.12:-.22);
+ ctx.restore();
+}
+function __hockeyPuck(x,y,scale=1){ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.fillStyle='#17202b';ctx.beginPath();ctx.ellipse(0,0,15,6,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#65717a';ctx.lineWidth=1.5;ctx.stroke();ctx.restore()}
+const __hockeyBaseDrawScene=drawScene;
+drawScene=function(s,time,local){
+ if(s.hockey||s.analysis?.hockey){
+  const old=background,oldHero=hero;background=function(loc,t){if(loc==='hockey_rink')__hockeyRink(t);else old(loc,t)};hero=function(){};
+  try{__hockeyBaseDrawScene(s,time,local)}finally{background=old;hero=oldHero}
+  // Place a purpose-built hockey model in the foreground, with the puck animated during play.
+  const role=s.hockeyRole||s.analysis?.hockeyRole||'skater',action=s.hockeyAction||s.analysis?.hockeyAction||'skate';
+  __hockeySkater(270,790,role==='goalie'?.92:1.02,time,role,action);
+  const puckX=action==='shot'?390+Math.sin(time*.018)*35:action==='pass'?340+Math.sin(time*.012)*55:330+Math.sin(time*.002)*9;
+  __hockeyPuck(puckX,850,.9);
+  if(action==='goal'){ctx.save();ctx.fillStyle='#fff';ctx.font='bold 46px sans-serif';ctx.textAlign='center';ctx.shadowColor='#d64b58';ctx.shadowBlur=18;ctx.fillText('ГОЛ!',270,315);ctx.restore()}
+  return;
+ }
+ __hockeyBaseDrawScene(s,time,local);
+};
+
 // Canvas export. The movie contains the rendered picture; browser speech synthesis is preview-only.
 let movieRecorder=null,movieChunks=[];
 function exportMovie(){
@@ -1161,6 +1258,6 @@ function exportMovie(){
 function init(){setupCanvas();requestAnimationFrame(frame)}
 window.addEventListener('load',init);
 </script>
-<footer class="note" style="text-align:center;padding:8px">AI Cartoon Studio · Offline Story Engine 14.0 · local 2D renderer</footer>
+<footer class="note" style="text-align:center;padding:8px">AI Cartoon Studio · Offline Story Engine 16.0 + Hockey Asset Pack 1.0 · local 2D renderer</footer>
 </body>
 </html>
